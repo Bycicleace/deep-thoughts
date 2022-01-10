@@ -14,7 +14,7 @@ const startServer = async () => {
   const server = new ApolloServer({
     typeDefs,
     resolvers,
-    // context: authMiddleware -> Did not seem necessary, and broke the code
+    context: ({ req }) => req.headers
   });
 
   // Start the Apollo server
