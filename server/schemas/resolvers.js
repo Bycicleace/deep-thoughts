@@ -5,7 +5,7 @@ const { signToken } = require('../utils/auth');
 const resolvers = {
     Query: {
         me: async (parent, args, context) => {
-            if (context.data) {
+            if (await context.data.user) {
                 const userData = await User.findOne({ _id: context.data.user._id })
                     .select('-__v -password')
                     .populate('thoughts')
@@ -56,6 +56,47 @@ const resolvers = {
 
             const token = signToken(user);
             return { token, user };
+        },
+        addThought: async (parent, args, context) => {
+            if (await context.data.user) {
+                const thought = await Thought.create({ ...args, username: context.data.user.username });
+
+                await User.findByIdAndUpdate(
+                    { _id: context.data.user._id },
+                    { $push: { thoughts: thought._id } },
+                    { new: true }
+                );
+
+                return thought;
+            }
+
+            throw new AuthenticationError('You need to be logged in!');
+        },
+        addReaction: async (parent, { thoughtId, reactionBody }, context) => {
+            if (await context.data.user) {
+                const updatedThought = await Thought.findOneAndUpdate(
+                    { _id: thoughtId },
+                    { $push: { reactions: { reactionBody, username: context.data.user.username } } },
+                    { new: true, runValidators: true }
+                );
+
+                return updatedThought;
+            }
+
+            throw new AuthenticationError('You need to be logged in!');
+        },
+        addFriend: async (parent, { friendId }, context) => {
+            if (await context.data.user) {
+                const updatedUser = await User.findOneAndUpdate(
+                    { _id: context.data.user._id },
+                    { $addToSet: { friends: friendId } },
+                    { new: true }
+                ).populate('friends');
+
+                return updatedUser;
+            }
+
+            throw new AuthenticationError('You need to be logged in!');
         }
     }
 };
